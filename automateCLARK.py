@@ -160,7 +160,6 @@ class CLARK(object):
                 worksheet.set_column(0, 0, longeststrain)
             # Sort the abundance results based on the highest count
             sortedabundance = sorted(sample.general.passfilter, key=lambda x: int(x['Count']), reverse=True)
-            print sortedabundance
             # Print the results to file
             dictionaryheaders = headers[1:]
             for result in sortedabundance:
