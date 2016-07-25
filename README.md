@@ -10,8 +10,9 @@ docker container):
 
 * git
 * python-dev
+* python-pip
 
-`sudo apt-get install -y build-essential git python-dev`
+`sudo apt-get install -y build-essential git python-dev python-pip` 
 
 # Installation
 

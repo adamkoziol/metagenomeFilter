@@ -102,7 +102,6 @@ class CLARK(object):
         import xlsxwriter
         printtime('Creating report', self.start)
         from csv import DictReader
-        from operator import itemgetter
         # Create a workbook to store the report. Using xlsxwriter rather than a simple csv format, as I want to be
         # able to have appropriately sized, multi-line cells
         workbook = xlsxwriter.Workbook('{}/abundance.xlsx'.format(self.reportpath))
@@ -160,7 +159,8 @@ class CLARK(object):
                 longeststrain = len(sample.name)
                 worksheet.set_column(0, 0, longeststrain)
             # Sort the abundance results based on the highest count
-            sortedabundance = sorted(sample.general.passfilter, key=itemgetter('Count'), reverse=True)
+            sortedabundance = sorted(sample.general.passfilter, key=lambda x: int(x['Count']), reverse=True)
+            print sortedabundance
             # Print the results to file
             dictionaryheaders = headers[1:]
             for result in sortedabundance:
