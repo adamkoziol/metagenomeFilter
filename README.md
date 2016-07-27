@@ -3,6 +3,11 @@
 # Requirements
 
 * Linux
+* seqtk (if filtering reads)
+```
+git clone https://github.com/lh3/seqtk.git;
+cd seqtk; make
+```
 
 If you plan on running installing the required modules using setup.py, following an `sudo apt-get update` 
 the following packages need to be installed (these are the packages that need to be installed in an Ubuntu:16.04
@@ -95,7 +100,7 @@ use rather than selecting all taxIDs that are greater than a cutoff value.
 
 ### Example command
 
-`python filtermetagenome.py -s /path/sequences -d /CLARK/outputs/folder -C /CLARK/scripts/folder`
+`python filtermetagenome.py -s /path/sequences -d /CLARK/outputs/folder`
 
 Required arguments:
 

@@ -13,7 +13,6 @@ class FilterGenome(object):
         import createobject
         # Only find the data files if a datapath is provided
         if self.datapath:
-            print self.datapath, '124'
             self.runmetadata = createobject.ObjectCreation(self)
         else:
             for sample in self.runmetadata.samples:
@@ -116,8 +115,8 @@ class FilterGenome(object):
                 sample.general.fastqlist[taxid] = '{}/{}_{}.txt'.format(sample.general.sortedfastqpath, sample.name,
                                                                         taxid)
                 # Set the name of the .fastq file that will store the filtered reads
-                sample.general.filteredfastq[taxid] = '{}/{}_{}.fastq'.format(sample.general.sortedfastqpath,
-                                                                              sample.name, taxid)
+                sample.general.filteredfastq[taxid] = '{}/{}_{}.fastq.gz'.format(sample.general.sortedfastqpath,
+                                                                                 sample.name, taxid)
                 # Open the list, and write the list of all reads, one per line
                 with open(sample.general.fastqlist[taxid], 'wb') as binned:
                     binned.write('\n'.join(set(sample[taxid].readlist)))
@@ -147,7 +146,7 @@ class FilterGenome(object):
             # Iterate through the taxIDs
             for taxid in sample.general.taxids:
                 # Set the system call to seqtk to subsequence the fastq file
-                sample.general.seqtkcall = 'seqtk subseq {} {} > {}' \
+                sample.general.seqtkcall = 'seqtk subseq {} {} | gzip > {}' \
                     .format(sample.general.fastqfiles[0],
                             sample.general.fastqlist[taxid],
                             sample.general.filteredfastq[taxid])
