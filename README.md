@@ -2,13 +2,6 @@
 
 # Requirements
 
-* Linux
-* seqtk (if filtering reads)
-```
-git clone https://github.com/lh3/seqtk.git;
-cd seqtk; make
-```
-
 If you plan on running installing the required modules using setup.py, following an `sudo apt-get update` 
 the following packages need to be installed (these are the packages that need to be installed in an Ubuntu:16.04
 docker container):
@@ -16,8 +9,15 @@ docker container):
 * git
 * python-dev
 * python-pip
+* zlib1g-dev (only if installing seqtk)
 
-`sudo apt-get install -y build-essential git python-dev python-pip` 
+`sudo apt-get install -y build-essential git python-dev python-pip zlib1g-dev` 
+
+If you plan on filtering reads, then you will need seqtk
+```
+git clone https://github.com/lh3/seqtk.git;
+cd seqtk; make
+```
 
 # Installation
 
