@@ -15,9 +15,14 @@ class CLARK(object):
         import fileprep
         # Move the files to subfolders and create objects
         self.runmetadata = createobject.ObjectCreation(self)
-        # To streamline the CLARK process, decompress and combine .gz and paired end files as required
-        printtime('Decompressing and combining .fastq files for CLARK analysis', self.start)
-        fileprep.Fileprep(self)
+        if self.runmetadata.extension == '.fastq':
+            # To streamline the CLARK process, decompress and combine .gz and paired end files as required
+            printtime('Decompressing and combining .fastq files for CLARK analysis', self.start)
+            fileprep.Fileprep(self)
+        else:
+            printtime('Using .fasta files for CLARK analysis', self.start)
+            for sample in self.runmetadata.samples:
+                sample.general.combined = sample.general.fastqfiles[0]
         # Set the targets
         self.settargets()
 

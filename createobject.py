@@ -10,23 +10,35 @@ class ObjectCreation(object):
         printtime('Finding sequence files', self.start)
         # Find all the .fastq files in the sequence path
         filelist = glob('{}*.fastq*'.format(self.sequencepath))
+        if filelist:
+            self.extension = '.fastq'
+            self.filehandler(filelist)
+        else:
+            filelist = glob('{}*.fa*'.format(self.sequencepath))
+            self.extension = '.fasta'
+            self.filehandler(filelist)
+
+    def filehandler(self, filelist):
         # Extract the base name of the globbed name + path provided
-        fastqnames = map(lambda x: os.path.split(x)[1], filer(filelist))
+        if self.extension == '.fastq':
+            names = map(lambda x: os.path.split(x)[1], filer(filelist))
+        else:
+            names = map(lambda x: os.path.split(x)[1].split('.')[0], filelist)
         # Iterate through the names of the fastq files
-        for fastqname in sorted(fastqnames):
+        for name in sorted(names):
             # Set the name
             metadata = MetadataObject()
-            metadata.name = fastqname
+            metadata.name = name
             # Set the destination folder
-            outputdir = os.path.join(self.sequencepath, fastqname)
+            outputdir = os.path.join(self.sequencepath, name)
             # Make the destination folder
             make_path(outputdir)
             # Get the fastq files specific to the fastqname
-            specificfastq = glob('{}{}*.fastq*'.format(self.sequencepath, fastqname))
+            specific = glob('{}{}*{}*'.format(self.sequencepath, name, self.extension))
             # Link the files to the output folder
             try:
                 # Link the .gz files to :self.path/:filename
-                map(lambda x: os.symlink(x, '{}/{}'.format(outputdir, os.path.split(x)[1])), specificfastq)
+                map(lambda x: os.symlink(x, '{}/{}'.format(outputdir, os.path.split(x)[1])), specific)
             # Except os errors
             except OSError as exception:
                 # If there is an exception other than the file exists, raise it
@@ -35,7 +47,7 @@ class ObjectCreation(object):
             # Initialise the general and run categories
             metadata.general = GenObject()
             # Populate the .fastqfiles category of :self.metadata
-            metadata.general.fastqfiles = [fastq for fastq in glob('{}/{}*.fastq*'.format(outputdir, fastqname))
+            metadata.general.fastqfiles = [fastq for fastq in glob('{}/{}*{}*'.format(outputdir, name, self.extension))
                                            if 'trimmed' not in fastq]
             # Add the output directory to the metadata
             metadata.general.outputdirectory = outputdir
@@ -61,4 +73,5 @@ class ObjectCreation(object):
             assert os.path.isdir(self.datapath), u'Data location supplied is not a valid directory {0!r:s}' \
                 .format(self.datapath)
         self.start = inputobject.start
+        self.extension = ''
         self.createobject()

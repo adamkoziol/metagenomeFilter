@@ -2,6 +2,16 @@
 
 # Requirements
 
+Docker method:
+
+Build the Docker image on your system
+
+Non-Docker method:
+
+You will need CLARK
+
+http://clark.cs.ucr.edu/Download/CLARKV1.2.3.tar.gz
+
 If you plan on running installing the required modules using setup.py, following an `sudo apt-get update` 
 the following packages need to be installed (these are the packages that need to be installed in an Ubuntu:16.04
 docker container):
@@ -9,9 +19,10 @@ docker container):
 * git
 * python-dev
 * python-pip
+* wget
 * zlib1g-dev (only if installing seqtk)
 
-`sudo apt-get install -y build-essential git python-dev python-pip zlib1g-dev` 
+`sudo apt-get install -y build-essential git python-dev python-pip wget zlib1g-dev` 
 
 If you plan on filtering reads, then you will need seqtk
 ```
@@ -40,7 +51,7 @@ Used to automate the taxonomic assignment performed by CLARK
 
 ### Example command
 
-`python automateCLARK.py -s /path/sequences -d /database/folder -C /CLARK/scripts/folder`
+`python automateCLARK.py -s /path/sequences -d /database/folder -C /CLARK/scripts/folder /path`
 
 Required arguments:
 
