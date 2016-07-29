@@ -100,7 +100,7 @@ use rather than selecting all taxIDs that are greater than a cutoff value.
 
 ### Example command
 
-`python filtermetagenome.py -s /path/sequences -d /CLARK/outputs/folder`
+`python filtermetagenome.py -s /path/sequences -d /CLARK/outputs/folder /path`
 
 Required arguments:
 
