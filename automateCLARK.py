@@ -31,6 +31,7 @@ class CLARK(object):
          use, and the level of classification for the analysis"""
         # Define the set targets call. Include the path to the script, the database path and files, as well
         # as the taxonomic rank to use
+        printtime('Setting up database', self.start)
         self.targetcall = 'cd {} && ./set_targets.sh {} {} --{}'.format(self.clarkpath, self.databasepath,
                                                                         self.database, self.rank)
         subprocess.call(self.targetcall, shell=True, stdout=self.devnull, stderr=self.devnull)

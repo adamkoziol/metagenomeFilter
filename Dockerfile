@@ -31,3 +31,4 @@ ENV PATH /metagenomeFilter:$PATH
 RUN wget http://clark.cs.ucr.edu/Download/CLARKV1.2.3.tar.gz
 RUN tar -xvf CLARKV1.2.3.tar.gz
 RUN cd /CLARKSCV1.2.3 && ./install.sh
+RUN rm CLARKV1.2.3.tar.gz
