@@ -68,7 +68,10 @@ class ObjectCreation(object):
         self.samples = list()
         self.path = inputobject.path
         self.sequencepath = inputobject.sequencepath
-        self.datapath = inputobject.datapath
+        try:
+            self.datapath = inputobject.datapath
+        except AttributeError:
+            self.datapath = False
         if self.datapath:
             assert os.path.isdir(self.datapath), u'Data location supplied is not a valid directory {0!r:s}' \
                 .format(self.datapath)

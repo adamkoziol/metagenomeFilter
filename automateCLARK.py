@@ -128,6 +128,9 @@ class CLARK(object):
         col = 0
         # List of the headers to use
         headers = ['Strain', 'Name', 'TaxID', 'Lineage', 'Count', 'Proportion_All(%)', 'Proportion_Classified(%)']
+        # Add an additional header for .fasta analyses
+        if self.runmetadata.extension == '.fasta':
+            headers.insert(4, 'TotalBP')
         # Populate the headers
         for category in headers:
             # Write the data in the specified cell (row, col) using the bold format
@@ -166,9 +169,34 @@ class CLARK(object):
                 worksheet.set_column(0, 0, longeststrain)
             # Sort the abundance results based on the highest count
             sortedabundance = sorted(sample.general.passfilter, key=lambda x: int(x['Count']), reverse=True)
-            # Print the results to file
-            dictionaryheaders = headers[1:]
+            # Set of contigs from the classification file. For some reason, certain contigs are represented multiple
+            # times in the classification file. As far as I can tell, these multiple representations are always
+            # classified the same, and, therefore, should be treated as duplicates, and ignored
+            contigset = set()
             for result in sortedabundance:
+                # Add the total number of base pairs classified for each TaxID. As only the total number of contigs
+                # classified as a particular TaxID are presented in the report, it can be misleading if a large number
+                # of small contigs are classified to a particular TaxID e.g. 56 contigs map to TaxID 28901, and 50
+                # contigs map to TaxID 630, however, added together, those 56 contigs are 4705838 bp, while the 50
+                # contigs added together are only 69602 bp. While this is unlikely a pure culture, only
+                # 69602 / (4705838 + 69602) = 1.5% of the total bp map to TaxID 630 compared to 45% of the contigs
+                if self.runmetadata.extension == '.fasta':
+                    # Initialise a variable to store the total bp mapped to the TaxID
+                    result['TotalBP'] = int()
+                    # Read the classification file into a dictionary
+                    classificationdict = DictReader(open(sample.general.classification))
+                    # Read through each contig classification in the dictionary
+                    for contig in classificationdict:
+                        # Pull out each contig with a TaxID that matches the TaxID of the result of interest, and
+                        # is not present in a set of contigs that have already been added to the dictionary
+                        if result['TaxID'] == contig[' Assignment'] and contig['Object_ID'] not in contigset:
+                            # Increment the total bp mapping to the TaxID by the integer of each contig
+                            result['TotalBP'] += int(contig[' Length'])
+                            # Avoid duplicates by adding the contig name to the set of contigs
+                            contigset.add(contig['Object_ID'])
+                # Print the results to file
+                # Ignore the first header, as it is the strain name, which has already been added to the report
+                dictionaryheaders = headers[1:]
                 for header in dictionaryheaders:
                     data = result[header]
                     worksheet.write(row, col, data, courier)
@@ -213,7 +241,7 @@ class CLARK(object):
         self.database = args.database
         self.rank = args.rank
         self.clarkpath = args.clarkpath
-        self.cutoff = args.cutoff * 100
+        self.cutoff = float(args.cutoff) * 100
         # Initialise variables for the analysis
         self.targetcall = ''
         self.classifycall = ''
