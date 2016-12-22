@@ -89,18 +89,21 @@ class CLARK(object):
             sample = self.abundancequeue.get()
             # Set the name of the abundance report
             sample.general.abundance = sample.general.combined.split('.')[0] + '_abundance.csv'
+            #
+            if not hasattr(sample, 'commands'):
+                sample.commands = GenObject()
             # Define system calls
-            sample.call = GenObject()
-            sample.call.target = self.targetcall
-            sample.call.classify = self.classifycall
-            sample.call.abundance = \
+
+            sample.commands.target = self.targetcall
+            sample.commands.classify = self.classifycall
+            sample.commands.abundance = \
                 'cd {} && ./estimate_abundance.sh -D {} -F {} > {}'.format(self.clarkpath,
                                                                            self.databasepath,
                                                                            sample.general.classification,
                                                                            sample.general.abundance)
             # Run the system call (if necessary)
             if not os.path.isfile(sample.general.abundance):
-                subprocess.call(sample.call.abundance, shell=True, stdout=self.devnull, stderr=self.devnull)
+                subprocess.call(sample.commands.abundance, shell=True, stdout=self.devnull, stderr=self.devnull)
             self.abundancequeue.task_done()
 
     def reports(self):
@@ -110,7 +113,7 @@ class CLARK(object):
         from csv import DictReader
         # Create a workbook to store the report. Using xlsxwriter rather than a simple csv format, as I want to be
         # able to have appropriately sized, multi-line cells
-        workbook = xlsxwriter.Workbook('{}/abundance.xlsx'.format(self.reportpath))
+        workbook = xlsxwriter.Workbook(self.report)
         make_path(self.reportpath)
         # New worksheet to store the data
         worksheet = workbook.add_worksheet()
@@ -231,12 +234,10 @@ class CLARK(object):
         assert os.path.isdir(self.sequencepath), u'Supplied sequence path is not a valid directory {0!r:s}' \
             .format(self.sequencepath)
         self.databasepath = os.path.join(args.databasepath, '')
-        assert os.path.isdir(self.databasepath), u'Supplied sequence path is not a valid directory {0!r:s}' \
+        assert os.path.isdir(self.databasepath), u'Supplied database path is not a valid directory {0!r:s}' \
             .format(self.databasepath)
-        self.reportpath = os.path.join(self.path, 'reports')
         # Use the argument for the number of threads to use, or default to the number of cpus in the system
         self.cpus = int(args.threads if args.threads else multiprocessing.cpu_count())
-        self.runmetadata = MetadataObject()
         # Set variables from the arguments
         self.database = args.database
         self.rank = args.rank
@@ -250,8 +251,62 @@ class CLARK(object):
         self.reportlist = '{}reportList.txt'.format(self.path)
         self.abundancequeue = Queue()
         self.datapath = ''
-        # Create the objects
-        self.objectprep()
+        self.reportpath = os.path.join(self.path, 'reports')
+        # If run as part of the assembly pipeline, a few modifications are necessary to ensure that the metadata objects
+        # and variables play nice
+        if args.runmetadata:
+            import fileprep
+            from shutil import move
+            self.runmetadata = args.runmetadata
+            self.extension = self.runmetadata.extension
+            # Create the name of the final report
+            self.report = '{}/{}'.format(self.reportpath, 'abundance{}.xlsx'.format(self.extension))
+            # Only re-run the CLARK analyses if the CLARK report doesn't exist. All files created by CLARK
+            if not os.path.isfile(self.report):
+                #
+                printtime('Performing CLARK analysis on {} files'.format(self.extension), self.start)
+                if self.extension == '.fastq':
+                    fileprep.Fileprep(self)
+                else:
+                    for sample in self.runmetadata.samples:
+                        sample.general.combined = sample.general.bestassemblyfile
+                # Set the targets
+                self.settargets()
+                # Clean up the files and create/delete attributes to be consistent with pipeline Metadata objects
+                for sample in self.runmetadata.samples:
+                    # Create a GenObject to store CLARK-related metadata when this script is run as part of the pipeline
+                    clarkextension = 'clark{}'.format(self.extension)
+                    setattr(sample, clarkextension, GenObject())
+                    # Create a folder to store all the CLARK files
+                    sample[clarkextension].outputpath = os.path.join(sample.general.outputdirectory, 'CLARK')
+                    make_path(sample[clarkextension].outputpath)
+                    # Move the files to the CLARK folder
+                    move(sample.general.abundance,
+                         '{}/{}'.format(sample[clarkextension].outputpath, os.path.basename(sample.general.abundance)))
+                    move(sample.general.classification,
+                         '{}/{}'.format(sample[clarkextension].outputpath,
+                                        os.path.basename(sample.general.classification)))
+                    # Set the CLARK-specific attributes
+                    sample[clarkextension].abundance = sample.general.abundance
+                    sample[clarkextension].classification = sample.general.classification
+                    sample[clarkextension].combined = sample.general.combined
+                    # Remove the combined .fastq files
+                    try:
+                        os.remove(sample.general.combined)
+                    except OSError:
+                        pass
+                    # Remove all the attributes from .general
+                    map(lambda x: delattr(sample.general, x), ['abundance', 'classification', 'combined'])
+                    # Remove the text files lists of files and reports created by CLARK
+                    try:
+                        map(lambda x: os.remove('{}{}'.format(self.path, x)), ['reportList.txt', 'sampleList.txt'])
+                    except OSError:
+                        pass
+        else:
+            self.runmetadata = MetadataObject()
+            self.report = '{}/{}'.format(self.reportpath, 'abundance.xlsx')
+            # Create the objects
+            self.objectprep()
         # Optionally filter the .fastq reads based on taxonomic assignment
         if args.filter:
             import filtermetagenome
@@ -314,3 +369,28 @@ if __name__ == '__main__':
 
     # Print a bold, green exit statement
     print '\033[92m' + '\033[1m' + "\nElapsed Time: %0.2f seconds" % (time.time() - start) + '\033[0m'
+
+
+class PipelineInit(object):
+
+    def __init__(self, inputobject):
+        # Create an object to mimic the command line arguments necessary for the script
+        args = MetadataObject()
+        args.path = inputobject.path
+        args.sequencepath = inputobject.path
+        args.databasepath = '/nas0/Adam/RefseqDatabase/Bos_taurus'
+        args.clarkpath = '/nas0/bio_requests/7482/CLARKSCV1.2.3'
+        args.cutoff = 0.005
+        args.database = 'bacteria'
+        args.rank = 'species'
+        args.filter = False
+        args.threads = inputobject.cpus
+        args.runmetadata = inputobject.runmetadata
+        # Run CLARK on both .fastq and .fasta files
+        for extension in ['.fastq', '.fasta']:
+            args.runmetadata.extension = extension
+            if extension == '.fasta':
+                # Overwrite the .sequencepath attribute to point to the folder storing all the assemblies
+                args.sequencepath = os.path.join(args.path, 'BestAssemblies')
+            # Run CLARK
+            CLARK(args, inputobject.commit, inputobject.starttime, inputobject.homepath)
