@@ -79,6 +79,23 @@ class CLARK(object):
             # Start the threading
             threads.start()
         for sample in self.runmetadata.samples:
+            # Set the name of the abundance report
+            sample.general.abundance = sample.general.combined.split('.')[0] + '_abundance.csv'
+            # print sample.name, sample.general.combined, sample.general.abundance
+            #
+            # if not hasattr(sample, 'commands'):
+            if not sample.commands.datastore:
+                sample.commands = GenObject()
+
+            # Define system calls
+            sample.commands.target = self.targetcall
+            sample.commands.classify = self.classifycall
+            sample.commands.abundancecall = \
+                'cd {} && ./estimate_abundance.sh -D {} -F {} > {}'.format(self.clarkpath,
+                                                                           self.databasepath,
+                                                                           sample.general.classification,
+                                                                           sample.general.abundance)
+            # print sample.name, sample.commands.abundancecall
             self.abundancequeue.put(sample)
         self.abundancequeue.join()
         # Create reports
@@ -87,23 +104,10 @@ class CLARK(object):
     def estimate(self):
         while True:
             sample = self.abundancequeue.get()
-            # Set the name of the abundance report
-            sample.general.abundance = sample.general.combined.split('.')[0] + '_abundance.csv'
-            #
-            if not hasattr(sample, 'commands'):
-                sample.commands = GenObject()
-            # Define system calls
 
-            sample.commands.target = self.targetcall
-            sample.commands.classify = self.classifycall
-            sample.commands.abundance = \
-                'cd {} && ./estimate_abundance.sh -D {} -F {} > {}'.format(self.clarkpath,
-                                                                           self.databasepath,
-                                                                           sample.general.classification,
-                                                                           sample.general.abundance)
             # Run the system call (if necessary)
             if not os.path.isfile(sample.general.abundance):
-                subprocess.call(sample.commands.abundance, shell=True, stdout=self.devnull, stderr=self.devnull)
+                subprocess.call(sample.commands.abundancecall, shell=True, stdout=self.devnull, stderr=self.devnull)
             self.abundancequeue.task_done()
 
     def reports(self):
@@ -254,55 +258,62 @@ class CLARK(object):
         self.reportpath = os.path.join(self.path, 'reports')
         # If run as part of the assembly pipeline, a few modifications are necessary to ensure that the metadata objects
         # and variables play nice
-        if args.runmetadata:
-            import fileprep
-            from shutil import move
-            self.runmetadata = args.runmetadata
-            self.extension = self.runmetadata.extension
-            # Create the name of the final report
-            self.report = '{}/{}'.format(self.reportpath, 'abundance{}.xlsx'.format(self.extension))
-            # Only re-run the CLARK analyses if the CLARK report doesn't exist. All files created by CLARK
-            if not os.path.isfile(self.report):
-                #
-                printtime('Performing CLARK analysis on {} files'.format(self.extension), self.start)
-                if self.extension == '.fastq':
-                    fileprep.Fileprep(self)
-                else:
+        try:
+            if args.runmetadata:
+                import fileprep
+                from shutil import move
+                self.runmetadata = args.runmetadata
+                self.extension = self.runmetadata.extension
+                # Create the name of the final report
+                self.report = '{}/{}'.format(self.reportpath, 'abundance{}.xlsx'.format(self.extension))
+                # Only re-run the CLARK analyses if the CLARK report doesn't exist. All files created by CLARK
+                if not os.path.isfile(self.report):
+                    #
+                    printtime('Performing CLARK analysis on {} files'.format(self.extension), self.start)
+                    if self.extension == '.fastq':
+                        fileprep.Fileprep(self)
+                    else:
+                        for sample in self.runmetadata.samples:
+                            sample.general.combined = sample.general.bestassemblyfile
+                    # Set the targets
+                    self.settargets()
+                    # Clean up the files and create/delete attributes to be consistent with pipeline Metadata objects
                     for sample in self.runmetadata.samples:
-                        sample.general.combined = sample.general.bestassemblyfile
-                # Set the targets
-                self.settargets()
-                # Clean up the files and create/delete attributes to be consistent with pipeline Metadata objects
-                for sample in self.runmetadata.samples:
-                    # Create a GenObject to store CLARK-related metadata when this script is run as part of the pipeline
-                    clarkextension = 'clark{}'.format(self.extension)
-                    setattr(sample, clarkextension, GenObject())
-                    # Create a folder to store all the CLARK files
-                    sample[clarkextension].outputpath = os.path.join(sample.general.outputdirectory, 'CLARK')
-                    make_path(sample[clarkextension].outputpath)
-                    # Move the files to the CLARK folder
-                    move(sample.general.abundance,
-                         '{}/{}'.format(sample[clarkextension].outputpath, os.path.basename(sample.general.abundance)))
-                    move(sample.general.classification,
-                         '{}/{}'.format(sample[clarkextension].outputpath,
-                                        os.path.basename(sample.general.classification)))
-                    # Set the CLARK-specific attributes
-                    sample[clarkextension].abundance = sample.general.abundance
-                    sample[clarkextension].classification = sample.general.classification
-                    sample[clarkextension].combined = sample.general.combined
-                    # Remove the combined .fastq files
-                    try:
-                        os.remove(sample.general.combined)
-                    except OSError:
-                        pass
-                    # Remove all the attributes from .general
-                    map(lambda x: delattr(sample.general, x), ['abundance', 'classification', 'combined'])
-                    # Remove the text files lists of files and reports created by CLARK
-                    try:
-                        map(lambda x: os.remove('{}{}'.format(self.path, x)), ['reportList.txt', 'sampleList.txt'])
-                    except OSError:
-                        pass
-        else:
+                        # Create a GenObject to store metadata when this script is run as part of the pipeline
+                        clarkextension = 'clark{}'.format(self.extension)
+                        setattr(sample, clarkextension, GenObject())
+                        # Create a folder to store all the CLARK files
+                        sample[clarkextension].outputpath = os.path.join(sample.general.outputdirectory, 'CLARK')
+                        make_path(sample[clarkextension].outputpath)
+                        # Move the files to the CLARK folder
+                        move(sample.general.abundance,
+                             '{}/{}'.format(sample[clarkextension].outputpath,
+                                            os.path.basename(sample.general.abundance)))
+                        move(sample.general.classification,
+                             '{}/{}'.format(sample[clarkextension].outputpath,
+                                            os.path.basename(sample.general.classification)))
+                        # Set the CLARK-specific attributes
+                        sample[clarkextension].abundance = sample.general.abundance
+                        sample[clarkextension].classification = sample.general.classification
+                        sample[clarkextension].combined = sample.general.combined
+                        # Remove the combined .fastq files
+                        try:
+                            os.remove(sample.general.combined)
+                        except OSError:
+                            pass
+                        # Remove all the attributes from .general
+                        map(lambda x: delattr(sample.general, x), ['abundance', 'classification', 'combined'])
+                        # Remove the text files lists of files and reports created by CLARK
+                        try:
+                            map(lambda x: os.remove('{}{}'.format(self.path, x)), ['reportList.txt', 'sampleList.txt'])
+                        except OSError:
+                            pass
+            else:
+                self.runmetadata = MetadataObject()
+                self.report = '{}/{}'.format(self.reportpath, 'abundance.xlsx')
+                # Create the objects
+                self.objectprep()
+        except AttributeError:
             self.runmetadata = MetadataObject()
             self.report = '{}/{}'.format(self.reportpath, 'abundance.xlsx')
             # Create the objects

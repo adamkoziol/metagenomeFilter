@@ -46,6 +46,7 @@ class ObjectCreation(object):
                     raise
             # Initialise the general and run categories
             metadata.general = GenObject()
+            metadata.commands = GenObject()
             # Populate the .fastqfiles category of :self.metadata
             metadata.general.fastqfiles = [fastq for fastq in glob('{}/{}*{}*'.format(outputdir, name, self.extension))
                                            if 'trimmed' not in fastq]
