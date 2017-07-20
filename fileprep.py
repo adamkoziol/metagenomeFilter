@@ -38,7 +38,10 @@ class Fileprep(object):
                             # Open the .fastq file with gzip
                             with gzip.open(read, 'rb') as fastq:
                                 # Read the file contents and write them to the combined file
-                                combined.write(fastq.read())
+                                try:
+                                    combined.write(fastq.read())
+                                except IOError:
+                                    pass
                         else:
                             with open(read, 'rb') as fastq:
                                 # Read in data and write it to file
